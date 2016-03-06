@@ -69,7 +69,10 @@ class MFA_methods():
             if flux_stdev:
                 total_stdev += flux_stdev;
                 cnt+=1;
-        average_observable_flux_precision = observable_total_stdev/float(observable_cnt);
+        if observable_cnt > 0:
+            average_observable_flux_precision = observable_total_stdev/float(observable_cnt);
+        else:
+            average_observable_flux_precision = None;
         average_flux_precision = total_stdev/float(cnt);
         return average_flux_precision,average_observable_flux_precision;
     def check_fluxRange(self,flux_I,flux_lb_I,flux_ub_I):
@@ -307,7 +310,8 @@ class MFA_methods():
             # note that both fluxes cannot be unbounded
             if flux_1 > upper_bound_I-upper_bound_I*tolerance_I and flux_2 > upper_bound_I-upper_bound_I*tolerance_I:
                 print('both fluxes are unbounded')
-                flux_average = None;
+                #flux_average = None;
+                flux_average = 0.0;
                 flux_lb = lower_bound_I;
                 flux_ub = upper_bound_I;
                 #flux_lb = flux_lb_1-flux_lb_2
@@ -397,8 +401,8 @@ class MFA_methods():
         ##    flux_ub = 0.0
         ##    flux_units = flux_units_2;
         else:
-            flux_average = None;
-            #flux_average = 0.0;
+            #flux_average = None;
+            flux_average = 0.0;
             flux_lb = lower_bound_I
             flux_ub = upper_bound_I
             flux_units = 'mmol*gDCW-1*hr-1';
