@@ -1,7 +1,7 @@
 #System
 from math import sqrt
 #3rd party
-import numpy
+import numpy as np
 #Dependencies
 from python_statistics.calculate_interface import calculate_interface
 class MFA_methods():
@@ -134,7 +134,7 @@ class MFA_methods():
         '''correct the flux average if it is not within the lb/ub'''
         flux_average = flux_I;
         if flux_average and (flux_average < flux_lb_I or flux_average > flux_ub_I):
-            flux_average = numpy.mean([flux_lb_I,flux_ub_I]);
+            flux_average = np.mean([flux_lb_I,flux_ub_I]);
         return flux_average;
     def substitute_zeroFluxForNone(self,flux_I):
         '''substitute 0.0 for None'''
@@ -160,7 +160,7 @@ class MFA_methods():
         flux_lb=flux_lb_I;
         flux_ub=flux_ub_I;
         if flux_lb and flux_ub:
-            flux_average = numpy.mean([flux_lb,flux_ub]);
+            flux_average = np.mean([flux_lb,flux_ub]);
         return flux_average;
     def _calculate_netFlux_v1(self,flux_1,flux_stdev_1,flux_lb_1,flux_ub_1,flux_units_1,
                           flux_2,flux_stdev_2,flux_lb_2,flux_ub_2,flux_units_2,
@@ -283,7 +283,7 @@ class MFA_methods():
         #if flux_average == 0.0:
         #    flux_average = None;
         #elif flux_average and (flux_average < flux_lb or flux_average > flux_ub):
-        #    flux_average = numpy.mean([flux_lb,flux_ub]);
+        #    flux_average = np.mean([flux_lb,flux_ub]);
         return flux_average,flux_stdev,flux_lb,flux_ub,flux_units
     def _calculate_netFlux_v2(self,flux_1,flux_stdev_1,flux_lb_1,flux_ub_1,flux_units_1,
                           flux_2,flux_stdev_2,flux_lb_2,flux_ub_2,flux_units_2,
@@ -415,9 +415,9 @@ class MFA_methods():
         #if flux_average == 0.0:
         #    flux_average = None;
         #elif flux_average and (flux_average < flux_lb or flux_average > flux_ub):
-        #    flux_average = numpy.mean([flux_lb,flux_ub]);
+        #    flux_average = np.mean([flux_lb,flux_ub]);
         return flux_average,flux_stdev,flux_lb,flux_ub,flux_units
-    def calculate_netFlux(self,flux_1,flux_stdev_1,flux_lb_1,flux_ub_1,flux_units_1,
+    def _calculate_netFlux_v3(self,flux_1,flux_stdev_1,flux_lb_1,flux_ub_1,flux_units_1,
                           flux_2,flux_stdev_2,flux_lb_2,flux_ub_2,flux_units_2,
                           lower_bound_I=-1000.0,upper_bound_I=1000.0,tolerance_I=1e-4):
         '''Calculate the net flux through a reaction,
@@ -459,6 +459,56 @@ class MFA_methods():
         # calculate the lb/ub of the net flux
         flux_lb = flux_lb_1-flux_lb_2;
         flux_ub = flux_ub_1-flux_ub_2;
+        # check the direction of the lower/upper bounds
+        flux_lb,flux_ub = self.correct_fluxLBAndUBDirection(flux_lb,flux_ub);
+        ## check the bounds of the lb/ub
+        #check_bounds = self.check_fluxLBAndUBBounds(flux_average,flux_lb,flux_ub);
+        #if not check_bounds:
+        #    print('flux is not within the lower/upper bounds');
+        #    statement = ('flux: %f, flux_lb: %f, flux_ub: %f' %(flux_average,flux_lb,flux_ub));
+        #    print(statement);
+        #    flux_lb,flux_ub = self.correct_fluxLBAndUBBounds(flux_average,flux_lb,flux_ub,lower_bound_I,upper_bound_I);
+
+        return flux_average,flux_stdev,flux_lb,flux_ub,flux_units
+    def calculate_netFlux(self,flux_1,flux_stdev_1,flux_lb_1,flux_ub_1,flux_units_1,
+                          flux_2,flux_stdev_2,flux_lb_2,flux_ub_2,flux_units_2,
+                          lower_bound_I=-1000.0,upper_bound_I=1000.0,tolerance_I=1e-4):
+        '''Calculate the net flux through a reaction,
+        using the formula: vnet = v1-v2
+        where "1" denotes the forward flux, and "2" denotes the reverse flux'''
+
+        ## determine if the fluxes are observable
+        #observable_1 = self.check_observableFlux(flux_1,flux_lb_1,flux_ub_1)
+        #observable_2 = self.check_observableFlux(flux_2,flux_lb_2,flux_ub_2)
+        # ensure all fluxes have a value
+        if flux_1 is None: flux_1 = 0.0;
+        if flux_stdev_1 is None: flux_stdev_1 = 0.0;
+        if flux_lb_1 is None: flux_lb_1 = 0.0;
+        if flux_ub_1 is None: flux_ub_1 = 0.0;
+        if flux_units_1 is None: flux_units_1 = '';
+        if flux_2 is None: flux_2 = 0.0;
+        #elif flux_2:
+        #    print('check');
+        if flux_stdev_2 is None: flux_stdev_2 = 0.0;
+        if flux_lb_2 is None: flux_lb_2 = 0.0;
+        if flux_ub_2 is None: flux_ub_2 = 0.0;
+        if flux_units_2 is None: flux_units_2 = '';
+        # initialize the output
+        flux_average = 0.0;
+        flux_stdev = 0.0;
+        flux_lb = lower_bound_I;
+        flux_ub = upper_bound_I;
+        flux_units = '';
+        # get the units
+        if flux_units_1 !='': flux_units = flux_units_1;
+        elif flux_units_2 !='': flux_units = flux_units_2;
+        else: flux_units = '';
+        # calculate the net flux
+        flux_average = flux_1-flux_2
+        flux_stdev = sqrt(abs(flux_stdev_1*flux_stdev_1-flux_stdev_2*flux_stdev_2))
+        # calculate the lb/ub of the net flux
+        flux_lb = max([flux_average-flux_stdev_1,flux_1-flux_stdev_1,flux_lb_1])-max([flux_average-flux_stdev_2,flux_2-flux_stdev_2,flux_lb_2]);
+        flux_ub = min([flux_average+flux_stdev_1,flux_1+flux_stdev_1,flux_ub_1])-min([flux_average+flux_stdev_2,flux_2+flux_stdev_2,flux_ub_2]);
         # check the direction of the lower/upper bounds
         flux_lb,flux_ub = self.correct_fluxLBAndUBDirection(flux_lb,flux_ub);
         ## check the bounds of the lb/ub
@@ -560,61 +610,6 @@ class MFA_methods():
             else:
                 flux_lb = lower_bound_I;
                 flux_ub = 0.0;
-        return flux_lb,flux_ub;
-    def correct_fluxLBAndUBBounds_greedyTest(self,flux_I,flux_lb_I,flux_ub_I,lower_bound_I,upper_bound_I,flux_stdev_I=None):
-        '''correct the lb/ub bounds 
-        case 1: when lb/ub==0.0 and flux!=0.0
-        case 2: when flux < lb/ub and flux!=0.0
-        case 3: when flux > lb/ub and flux!=0.0'''
-        flux_lb,flux_ub=flux_lb_I,flux_ub_I;
-        if flux_stdev_I is None:
-            flux_stdev = self.calculate_fluxStdevFromLBAndUB(flux_lb_I,flux_ub_I);
-        else:
-            flux_stdev = flux_stdev_I;
-        # correct for lb/ub==0.0 and flux!=0.0
-        if flux_I != 0.0 and flux_lb_I == 0.0 and flux_ub_I == 0.0:
-            # case: flux_1 = 10.0, flux_2 = 0.0, flux_lb_1/2 = 0.0, flux_ub_1/2 = 1000.0
-            if flux_I > 0.0:
-                flux_lb = 0.0;
-                flux_ub = upper_bound_I;
-            else:
-                flux_lb = lower_bound_I;
-                flux_ub = 0.0;
-            return flux_lb,flux_ub;
-        #elif flux_I != 0.0 and flux_I<flux_lb_I and flux_I<flux_ub_I:
-        elif flux_I != 0.0 and flux_I<flux_lb_I and flux_ub_I<flux_lb_I:
-            # case: flux = 5, flux_lb = 6, flux_ub=0
-            #method3:
-            flux_lb = flux_I-flux_stdev;
-            flux_ub = flux_ub_I;
-            if not self.check_fluxLBAndUBBounds(flux_I,flux_lb,flux_ub):
-                flux_lb,flux_ub=self.correct_fluxLBAndUBBounds_greedy(flux_I,flux_lb,flux_ub,lower_bound_I,upper_bound_I,flux_stdev_I=flux_stdev);
-            ##method2:
-            #flux_lb = flux_I-flux_stdev;
-            #flux_ub = flux_lb_I;
-            #if not self.check_fluxLBAndUBBounds(flux_I,flux_lb,flux_ub):
-            #    flux_lb,flux_ub=self.correct_fluxLBAndUBBounds_greedy(flux_I,flux_lb,flux_ub,lower_bound_I,upper_bound_I,flux_stdev_I=flux_stdev);
-            #method1:
-            #flux_lb = flux_I-flux_stdev;
-            #flux_ub = flux_lb_I+flux_stdev;
-        #elif flux_I != 0.0 and flux_I>flux_lb_I and flux_I>flux_ub_I:
-        elif flux_I != 0.0 and flux_lb_I>flux_ub_I and flux_I>flux_ub_I:
-            # case: flux = 10.0, flux_lb = 2, flux_ub = 0
-            #method3:
-            flux_lb = flux_lb_I;
-            flux_ub = flux_I+flux_stdev;
-            if not self.check_fluxLBAndUBBounds(flux_I,flux_lb,flux_ub):
-                flux_lb,flux_ub=self.correct_fluxLBAndUBBounds_greedy(flux_I,flux_lb,flux_ub,lower_bound_I,upper_bound_I,flux_stdev_I=flux_stdev);
-            ##method2:
-            #flux_lb = flux_ub_I;
-            #flux_ub = flux_I+flux_stdev;
-            #if not self.check_fluxLBAndUBBounds(flux_I,flux_lb,flux_ub):
-            #    flux_lb,flux_ub=self.correct_fluxLBAndUBBounds_greedy(flux_I,flux_lb,flux_ub,lower_bound_I,upper_bound_I,flux_stdev_I=flux_stdev);
-            #method1:
-            #flux_lb = flux_ub_I-flux_stdev;
-            #flux_ub = flux_I+flux_stdev;
-        #else:
-        #    print('case not supported');
         return flux_lb,flux_ub;
     def correct_fluxLBAndUBBounds_greedy(self,flux_I,flux_lb_I,flux_ub_I,lower_bound_I,upper_bound_I,flux_stdev_I=None):
         '''correct the lb/ub bounds 
@@ -848,8 +843,8 @@ class MFA_methods():
         significant = False;
         fold_change = 0.0;
         if criteria_I == 'flux_lb/flux_ub':
-            flux_mean_1 = numpy.mean([flux_lb_1,flux_ub_1]);
-            flux_mean_2 = numpy.mean([flux_lb_2,flux_ub_2]);
+            flux_mean_1 = np.mean([flux_lb_1,flux_ub_1]);
+            flux_mean_2 = np.mean([flux_lb_2,flux_ub_2]);
             flux_diff = calc.calculate_difference(flux_mean_1,flux_mean_2,type_I='relative');
             flux_distance = calc.calculate_difference(flux_mean_1,flux_mean_2,type_I='geometric');
             fold_change = calc.calculate_foldChange(flux_mean_1,flux_mean_2,type_I='geometric');
@@ -905,7 +900,7 @@ class MFA_methods():
         #observable_1 = self.check_observableFlux(flux_1,flux_lb_1,flux_ub_1)
         #observable_2 = self.check_observableFlux(flux_2,flux_lb_2,flux_ub_2)
         # calculate and identify the exchange flux
-        #flux_exchange = numpy.min([flux_1,flux_2]);
+        #flux_exchange = np.min([flux_1,flux_2]);
         if flux_1 == 0.0 and flux_units_1 == '' and flux_2 == 0.0 and flux_units_2 == '':
             # there is no forward or reverse fluxes
             return flux_exchange,flux_exchange_stdev,flux_exchange_lb,flux_exchange_ub,flux_exchange_units,flux_exchange_norm,flux_exchange_norm_stdev,flux_exchange_norm_lb,flux_exchange_norm_ub,flux_exchange_norm_units;
@@ -929,9 +924,9 @@ class MFA_methods():
             flux_exchange_lb = flux_lb_1
             flux_exchange_ub = flux_ub_1
             flux_exchange_units = flux_units_1
-        # check the bounds of the fluxes
-        flux_exchange_lb=self.adjust_fluxToRange(flux_exchange_lb,lower_bound_I,upper_bound_I);
-        flux_exchange_ub=self.adjust_fluxToRange(flux_exchange_ub,lower_bound_I,upper_bound_I);
+        ## check the bounds of the fluxes
+        #flux_exchange_lb=self.adjust_fluxToRange(flux_exchange_lb,lower_bound_I,upper_bound_I);
+        #flux_exchange_ub=self.adjust_fluxToRange(flux_exchange_ub,lower_bound_I,upper_bound_I);
         # calculate the normalized exchange flux
         if flux_net!=0.0: flux_exchange_norm = flux_exchange/(abs(flux_net)+flux_exchange);
         # calculate the lower and upper bounds of the normalized exchange flux
